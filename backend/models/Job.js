@@ -1,79 +1,42 @@
 const mongoose = require('mongoose');
+const client = require('../config/elasticsearch');
 
 const JobSchema = new mongoose.Schema({
-  title: {
-    type: String,
-    required: [true, 'Job title is required'],
-    trim: true,
-    maxlength: [100, 'Job title cannot exceed 100 characters']
-  },
-  description: {
-    type: String,
-    required: [true, 'Job description is required'],
-    trim: true
-  },
-  company: {
-    name: {
-      type: String,
-      required: [true, 'Company name is required'],
-      trim: true
-    },
-    logo: String
-  },
-  location: {
-    city: {
-      type: String,
-      required: [true, 'City is required']
-    },
-    state: String,
-    country: {
-      type: String,
-      required: [true, 'Country is required']
-    },
-    remote: {
-      type: Boolean,
-      default: false
-    }
-  },
-  salary: {
-    min: Number,
-    max: Number,
-    currency: {
-      type: String,
-      default: 'USD'
-    }
-  },
-  jobType: {
-    type: String,
-    enum: ['full-time', 'part-time', 'contract', 'internship', 'remote'],
-    required: [true, 'Job type is required']
-  },
-  experienceLevel: {
-    type: String,
-    enum: ['entry', 'mid', 'senior'],
-    required: [true, 'Experience level is required']
-  },
-  skills: [{
-    type: String,
-    trim: true
-  }],
-  postedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: [true, 'Posted by is required']
-  },
-  postingDate: {
-    type: Date,
-    default: Date.now
-  },
-  expiryDate: {
-    type: Date
-  },
-  isActive: {
-    type: Boolean,
-    default: true
+  title: { type: String, required: true, trim: true, maxlength: 100 },
+  description: { type: String, required: true, trim: true },
+  company: { name: { type: String, required: true, trim: true }, logo: String },
+  location: { city: { type: String, required: true }, country: { type: String, required: true }, remote: { type: Boolean, default: false } },
+  jobType: { type: String, enum: ['full-time', 'part-time', 'contract', 'internship', 'remote'], required: true },
+  experienceLevel: { type: String, enum: ['entry', 'mid', 'senior'], required: true },
+  skills: [{ type: String, trim: true }],
+  postedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  postingDate: { type: Date, default: Date.now },
+  isActive: { type: Boolean, default: true }
+});
+
+JobSchema.post('save', async function(doc) {
+  try {
+    await client.index({
+      index: 'jobs',
+      id: doc._id.toString(),
+      body: {
+        title: doc.title,
+        description: doc.description,
+        company: doc.company,
+        location: doc.location,
+        jobType: doc.jobType,
+        experienceLevel: doc.experienceLevel,
+        skills: doc.skills,
+        postingDate: doc.postingDate,
+        isActive: doc.isActive
+      }
+    });
+    console.log(`Job ${doc._id} indexed in Elasticsearch`);
+  } catch (err) {
+    console.error('Error indexing job:', err.message); // Ensure errors are logged
   }
 });
+
 
 JobSchema.index({ title: 'text', description: 'text', 'skills': 'text' });
 JobSchema.index({ 'location.city': 1, 'location.country': 1 });

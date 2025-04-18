@@ -2,11 +2,12 @@ const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const path = require('path');
-
+const rateLimit = require('express-rate-limit');
 // Load environment variables
 dotenv.config();
 
 const app = express();
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
 
 // Middleware
 app.use(express.json());
